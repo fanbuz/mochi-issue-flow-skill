@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mochi Issue Flow"
+  short_description: "Issue-driven workflow SOP"
+  default_prompt: "Use $mochi-issue-flow to classify this request, recover existing issue-flow state, and guide the next workflow action."
