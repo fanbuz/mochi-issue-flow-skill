@@ -130,3 +130,8 @@ class PublicSkillShapeTest(unittest.TestCase):
 
         self.assertNotIn("ehr-server", public_text)
         self.assertNotIn("oa-web", public_text)
+
+    def test_python_bytecode_is_not_a_release_artifact(self):
+        ignore_rules = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+
+        self.assertIn("__pycache__/", ignore_rules)
