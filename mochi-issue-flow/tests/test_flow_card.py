@@ -15,6 +15,10 @@ from validate_flow_card import validate_flow_card
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 SKILL_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = SKILL_DIR.parent
+RELEASE_ROOT = REPO_ROOT if all(
+    (REPO_ROOT / name).is_file()
+    for name in ("README.md", "README.en.md", "LICENSE", "VERSION", ".gitignore")
+) else None
 
 
 def load_fixture(name: str) -> dict:
@@ -107,12 +111,13 @@ class PublicSkillShapeTest(unittest.TestCase):
         self.assertIn('"statusRevision"', template)
         self.assertIn("<!-- flow-card:end", template)
 
+    @unittest.skipUnless(RELEASE_ROOT, "release metadata is not part of an installed skill package")
     def test_release_metadata_and_readmes_describe_v3_and_apache(self):
-        readme_zh = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")
-        license_text = (REPO_ROOT / "LICENSE").read_text(encoding="utf-8")
+        readme_zh = (RELEASE_ROOT / "README.md").read_text(encoding="utf-8")
+        readme_en = (RELEASE_ROOT / "README.en.md").read_text(encoding="utf-8")
+        license_text = (RELEASE_ROOT / "LICENSE").read_text(encoding="utf-8")
 
-        self.assertEqual("3.0.0", (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip())
+        self.assertEqual("3.0.1", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
         self.assertIn("Apache-2.0", readme_zh)
         self.assertIn("Flow Card", readme_zh)
         self.assertIn("Apache-2.0", readme_en)
@@ -131,7 +136,8 @@ class PublicSkillShapeTest(unittest.TestCase):
         self.assertNotIn("ehr-server", public_text)
         self.assertNotIn("oa-web", public_text)
 
+    @unittest.skipUnless(RELEASE_ROOT, "release metadata is not part of an installed skill package")
     def test_python_bytecode_is_not_a_release_artifact(self):
-        ignore_rules = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+        ignore_rules = (RELEASE_ROOT / ".gitignore").read_text(encoding="utf-8")
 
         self.assertIn("__pycache__/", ignore_rules)

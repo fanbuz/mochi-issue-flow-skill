@@ -111,6 +111,8 @@ The core validator and auditor use only the Python standard library and read onl
 python3 -m unittest discover -s mochi-issue-flow/tests -p 'test_*.py' -v
 ```
 
+When this command runs at the release repository root, it also checks the READMEs, license, version, and bytecode ignore rules. In an installed skills directory those repository-level checks are explicitly skipped, while Flow Card, template, and auditor core tests still run independently.
+
 The [S1–S4 matrix](mochi-issue-flow/references/scenario-evidence-matrix.md) defines scenario evidence. Before closing an L3 Flow, audit missing status, commit drift, deferred registry work, stalled leases, and runtime blockers.
 
 ## Repository layout
