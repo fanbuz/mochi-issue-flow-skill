@@ -1,132 +1,144 @@
-# Mochi Issue Flow Skill
+# Mochi Issue Flow
 
-[English](README.en.md)
+[English](README.en.md) · [安装](#安装) · [快速开始](#快速开始) · [协议 30](#l3-flow-card-协议) · [贡献](CONTRIBUTING.md)
 
-Mochi Issue Flow 是一个面向 AI agent 的 **issue 动作工作流 SOP skill**。它将需求确认、跨仓协作、状态恢复、任务交接和验收收口统一到一个可持久化的 issue-like carrier 上，使协作状态能够被读取、恢复、同步和追踪。
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![Protocol](https://img.shields.io/badge/protocol-3.0-7c3aed.svg)](mochi-issue-flow/references/flow-card-schema.md)
+[![Skill](https://img.shields.io/badge/Agent%20Skill-carrier--neutral-0f766e.svg)](mochi-issue-flow/SKILL.md)
+[![Tests](https://img.shields.io/badge/tests-offline%20fixtures-0ea5e9.svg)](mochi-issue-flow/tests)
 
-这里的 **issue** 是一个通用概念，不限于 GitHub Issue。任何能够保存正文、评论、链接、状态和检查项的对象，都可以作为工作流载体：
+Mochi Issue Flow 是面向 AI agent 的开源协作 skill：它把 issue、ticket、任务卡等持久化对象变成可恢复、可审计、可交接的工作流载体。它既能处理单仓任务，也能让多个仓库、多个 agent 在同一个可验证的当前态上协作。
 
-- Gitea issue
-- GitHub issue
-- Linear issue
-- Jira ticket
-- 工作流任务
-- 项目管理卡片
-- 其他具备持久正文、评论和状态能力的系统对象
+它不是某个公司或某个 issue 平台的流程副本。GitHub Issues、Gitea、Linear、Jira，以及任何能保存正文、评论、链接和状态的载体都可以接入。
 
-## 适用场景
+## 它解决什么问题
 
-Mochi Issue Flow 适用于需要通过 issue-like carrier 组织协作状态的场景：
-
-- 单仓任务需要形成稳定的当前态、下一步和验收口径
-- 一个 issue 需要另一个仓库、团队或 agent 提供支撑
-- 多仓任务需要按阶段推进，并在阶段之间设置进入、退出和回滚条件
-- 已存在的协作任务需要从 issue 正文、评论和链接中恢复上下文
-- 交接给其他 agent 时，需要生成自解释的 handoff package
-- 任务关闭前，需要核对提交、验证、关联 issue、验收结论和状态一致性
+- 任务换 agent 后，不必靠聊天记录猜测“现在做到哪一步”。
+- 跨仓协作不再只有零散评论：source、support、driver、验收人与下一步都可追踪。
+- 多仓验收不把“某仓有提交”误当作完成：它要求完整的 artifact commit set 与代码/运行态双轴证据。
+- 重试、并发 agent 与状态回填不会彼此覆盖：一个 Flow Card 只允许持有有效租约的执行者编辑。
+- issue 是权威源，registry/看板是缓存；由于项目规则无法同步缓存时，状态会明确为待用户批准，而不是静默丢失。
 
 ## 核心模型
 
-Mochi Issue Flow 将协作任务分为三个层级：
+| 路线 | 何时使用 | 最小产物 |
+|---|---|---|
+| L1 单载体 | 一个仓库或一个 owner 可以闭环 | 当前态、下一步、验收证据 |
+| L2 关联协作 | source 需要一个 support 仓库/团队/agent | 双向链接与交接包 |
+| L3 Flow Card | 多仓、依赖 DAG、阶段门、并行 agent 或正式验收 | 跟踪载体中的一条规范状态评论 |
 
-| 层级 | 场景 | 载体策略 |
-|------|------|----------|
-| L1 单载体任务 | 当前仓库或当前任务可以独立闭环 | 使用当前 issue-like carrier 保存状态，不额外创建关联 issue |
-| L2 关联 issue 流程 | 一个来源载体需要一个目标仓库、团队或 agent 支撑 | 创建一条双向关联 issue，并保持 source 与 target 互链 |
-| L3 分阶段 flow | 多仓、多阶段、多条关联线，或需要 contract / phase gate | 创建 tracking issue，并只在当前阶段创建必要的关联 issue |
-
-在 L2 和 L3 场景中，issue-like carrier 是工作流状态的权威来源。registry、dashboard、本地笔记和可视化页面都只能作为缓存或投影。
-
-## 用户交互原则
-
-Mochi Issue Flow 要求 agent 先用用户能直接理解的语言表达工作状态，再在需要时暴露协议字段。
-
-用户主阅读路径应包含：
-
-- 当前任务是什么
-- 当前处于什么状态
-- 当前责任人是谁
-- 下一步动作是什么
-- 是否存在阻塞
-- 关联载体在哪里
-- 什么条件下可以验收或关闭
-
-协议字段如 `flowId`、`linkId`、`contractId`、`phase` 可以保存在 issue 正文或详情区中，但不应替代面向用户的当前态说明。
+所有路线都遵循同一条规则：**载体当前态是权威源，缓存只是投影。** L3 将这一当前态结构化为 Flow Card。
 
 ## 安装
 
-将 `mochi-issue-flow/` 复制到支持 Agent Skills 的目录：
+将整个 `mochi-issue-flow/` 目录复制到运行时可发现的 skills 目录。不要只复制 `SKILL.md`；模板、参考资料、校验器和测试夹具属于同一个发布单元。
 
 ```bash
 cp -R mochi-issue-flow ~/.codex/skills/
-cp -R mochi-issue-flow ~/.claude/skills/
 cp -R mochi-issue-flow ~/.agents/skills/
+cp -R mochi-issue-flow ~/.claude/skills/
 ```
 
-如果多个运行时共享同一套 skill，建议使用 `~/.agents/skills/`。
+如果多个 agent 运行时共用一套能力，推荐把同一版本安装到 `~/.agents/skills/`，并由同步脚本或包管理流程维护，而不是人工复制不同版本。
+
+## 快速开始
+
+### 1. 让 agent 先路由，不要先写 issue
+
+```text
+这个任务涉及两个仓库，先恢复已有 issue 的当前态，再决定是否建立 L3 Flow Card。
+```
+
+skill 会读取载体正文、关联载体和最新决定性评论，将工作归入 L1、L2、L3 或只读路线。创建关联 issue、转移所有权、暂停和关闭前都应取得用户确认。
+
+### 2. L2：发起一个可验收的支撑请求
+
+```text
+这个 issue 需要前端仓库支持。请建立双向关联，并生成可直接交给 support agent 的交接包。
+```
+
+使用 `templates/delivery-packet.json` 将目标、权威 carrier、期望证据、完整 artifact set 与幂等键交给另一个 agent。人类可读说明可以附带，但不替代这个包。
+
+### 3. L3：对多仓工作建立一条 Flow Card
+
+在跟踪 issue 中创建 `templates/flow-card-comment.md` 的评论。首次创建时 `canonicalStatusCommentUrl` 为 `null`；获得评论 URL 后，立即**编辑同一条评论**回填 URL 并将 `statusRevision` 加一。以后只编辑这一条当前态评论。
+
+```bash
+python3 mochi-issue-flow/scripts/validate_flow_card.py flow-card.json
+python3 mochi-issue-flow/scripts/audit_flow.py flow-card.json
+```
+
+第一个命令验证结构；第二个命令在离线 JSON 快照上审计状态。审计器检测到错误会以退出码 `2` 结束，适合自动化 gate 使用。
+
+## L3 Flow Card 协议
+
+Flow Card 是嵌在权威评论中的 JSON，由 HTML sentinel 包围，便于人和脚本同时阅读：
+
+````md
+<!-- flow-card:start v3 -->
+```json
+{ "protocolVersion": "3.0", "statusRevision": 7 }
+```
+<!-- flow-card:end -->
+````
+
+完整字段见 [schema](mochi-issue-flow/references/flow-card-schema.md) 和 [模板](mochi-issue-flow/templates/flow-card-comment.md)。关键约束如下。
+
+| 概念 | 约束 |
+|---|---|
+| 单一权威评论 | `canonicalStatusCommentUrl` 指向唯一当前态；首次创建后回填该 URL。 |
+| 乐观修订 | `statusRevision` 每次成功编辑递增；写入前重读并检查 revision 与 lease owner。 |
+| Bridge | 每个跨仓工作单元都有稳定 `bridgeId`，并用依赖 DAG 表达先后关系。 |
+| 完整提交集 | `currentCommit` 与 `acceptedCommit` 都必须覆盖该 Bridge 的全部 `relevantArtifactRepos`。 |
+| 双轴验收 | `codeState` 与 `runtimeState` 分别验证；仅被标为 required 的轴阻塞完成。 |
+| 提交漂移 | 两个提交集不一致时，活跃证据转入 `supersededEvidence`，required 轴进入 `needs-reverify`。 |
+| 并发保护 | `flowExecutionLease`、心跳、过期检测和显式 transfer 避免重复 agent/重复写入。 |
+| Registry | 项目策略可令 `registry.requiredForDone` 阻止最终 done；批准的 waiver 是唯一例外。 |
+
+协调状态（例如 `ready-for-acceptance`）不能替代 `flowCodeState` 与 `flowRuntimeState`。只有两条派生轴都满足当前 Bridge 集合的 required 条件，才可进入最终完成。
+
+## 使用正确的工作区
+
+跨仓验证前，记录每个相关仓库的路径、分支、worktree 与 SHA。独占、干净的专用分支可直接使用；共享分支、并行 agent 或需要独立索引时使用 worktree。
+
+新 worktree 不会自动带入被 Git 忽略的本地 skill、配置或生成文件。将所有必需文件是否 materialize 作为 preflight gate；任何缺失都应阻止验证，而非让 agent 用部分协议继续。详见 [workspace preflight](mochi-issue-flow/references/workspace-preflight.md)。
+
+## 验证与测试
+
+核心校验与审计器仅依赖 Python 标准库，且只读取离线 JSON。载体 API（GitHub、Gitea、Jira 等）的读取和写入属于 adapter 层，因此单元测试可重复，不依赖网络或远程分支。
+
+```bash
+python3 -m unittest discover -s mochi-issue-flow/tests -p 'test_*.py' -v
+```
+
+场景与证据要求见 [S1–S4 矩阵](mochi-issue-flow/references/scenario-evidence-matrix.md)。在关闭 L3 Flow 前至少审计：状态缺失、提交漂移、registry 延后、租约停滞和运行态阻塞。
 
 ## 目录结构
 
 ```text
 mochi-issue-flow-skill/
-|-- README.md
-|-- README.en.md
-|-- VERSION
-`-- mochi-issue-flow/
-    |-- SKILL.md
-    |-- agents/
-    |   `-- openai.yaml
-    `-- references/
-        |-- carrier-model.md
-        |-- exceptions.md
-        |-- gitea-cli.md
-        |-- templates.md
-        `-- testing.md
+├── LICENSE                         # Apache-2.0
+├── NOTICE
+├── README.md / README.en.md
+├── CONTRIBUTING.md
+├── VERSION
+└── mochi-issue-flow/
+    ├── SKILL.md                    # 精炼的 agent 入口
+    ├── agents/openai.yaml
+    ├── templates/                  # Flow Card、issue、证据、交接包
+    ├── references/                 # schema、状态、租约、预检、场景
+    ├── scripts/                    # 离线 validate / audit
+    └── tests/                      # 可重复 fixture 测试
 ```
 
-## 主要能力
+## 安全与隐私边界
 
-- **意图识别**：根据用户输入、issue 链接、仓库信息和已有状态判断 L1 / L2 / L3 / 只读路线。
-- **当前态恢复**：从 carrier 正文、决定性评论、标签、检查项和 registry 缓存中恢复工作状态。
-- **关联 issue 建立**：为跨仓或跨团队协作创建 source / target 双向链接。
-- **分阶段推进**：通过 tracking issue 管理 phase、contract、gate 和当前责任人。
-- **异常处理**：处理缓存不一致、状态过期、协议版本不兼容、阶段门未通过、合法暂停和 L2 升级 L3。
-- **交接与收口**：输出 handoff package，并在关闭前核对验证证据、关联载体和验收结论。
+公开版只保存通用协议与模板，严禁写入本地路径、内部域名、私有仓库、issue 编号、访问令牌、账号、客户数据或任何业务敏感信息。项目专属的 adapter、标签、仓库映射和审批规则应留在私有配置或项目内适配层。
 
-## Gitea 与 gitea-cli
+## 许可证
 
-Mochi Issue Flow 是 carrier-neutral 的 skill，不依赖特定 issue 平台。一个常见落地方式是使用 Gitea issue 作为载体，并通过 `gitea-cli` 读取 issue、创建关联 issue、写入评论和回填状态。
+本项目采用 [Apache License 2.0](LICENSE)（SPDX：`Apache-2.0`）。它允许商业使用、修改和再分发，并明确包含贡献者专利授权；保留许可证、NOTICE 与必要变更声明即可。商标使用不因许可证获得授权。
 
-Gitea 相关建议位于 `mochi-issue-flow/references/gitea-cli.md`。该文件只包含通用命令形态和安全默认值，不包含私有主机、组织、仓库或访问凭据。
+## 贡献
 
-## 使用示例
-
-建立关联 issue：
-
-```text
-这个问题需要另一个仓库配合，请建立关联 issue。
-```
-
-恢复既有任务：
-
-```text
-继续处理这个 issue，先恢复当前状态。
-```
-
-建立多阶段协同：
-
-```text
-这个改造涉及多个仓库，需要按阶段推进并设置验收门槛。
-```
-
-## 安全与脱敏
-
-本仓库只包含通用 skill、模板和参考资料。公开内容不应包含：
-
-- 本地仓库路径
-- 私有域名或内部服务地址
-- 访问令牌、密钥或账号凭据
-- 内部 issue 编号或私有项目名称
-- 客户、员工、薪资、考勤等敏感业务数据
-
-在复用或扩展本 skill 时，应将平台配置、私有仓库映射、内部标签体系和组织流程保存在私有发行版或本地配置中。
+欢迎通过 issue 或 pull request 改进协议、模板和 adapter 边界。提交前请运行离线测试，保持 `SKILL.md` 精炼，并确保新增内容不包含私有上下文。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。

@@ -1,0 +1,26 @@
+{
+  "protocolVersion": "3.0",
+  "deliveryId": "delivery-example",
+  "flowId": "flow-example",
+  "bridgeId": "bridge-example",
+  "from": {
+    "agent": "driver-agent",
+    "threadId": "optional-codex-thread-id",
+    "sessionId": "optional-runtime-session-id"
+  },
+  "to": {
+    "agent": "support-agent",
+    "threadId": null
+  },
+  "carrier": {
+    "url": "https://carrier.example/issues/123",
+    "canonicalStatusCommentUrl": "https://carrier.example/issues/123#comment-456"
+  },
+  "intent": "verify-runtime",
+  "artifactSet": {
+    "artifactSetId": "current-001",
+    "repos": {}
+  },
+  "expectedEvidence": ["runtime verification comment"],
+  "idempotencyKey": "flow-example:bridge-example:status-7:verify-runtime"
+}

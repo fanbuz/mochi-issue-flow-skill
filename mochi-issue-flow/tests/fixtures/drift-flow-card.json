@@ -1,0 +1,54 @@
+{
+  "protocolVersion": "3.0",
+  "flowId": "example-flow",
+  "statusRevision": 2,
+  "registry": {
+    "status": "synchronized",
+    "requiredForDone": false,
+    "waiver": null
+  },
+  "flowExecutionLease": {
+    "leaseId": "lease-1",
+    "epoch": 1,
+    "owner": {
+      "agentId": "example-agent",
+      "threadId": "thread-1",
+      "sessionId": "session-1"
+    },
+    "lastHeartbeatAt": "2026-07-11T09:55:00+00:00",
+    "expiresAt": "2026-07-11T10:10:00+00:00"
+  },
+  "bridges": [
+    {
+      "bridgeId": "example-bridge",
+      "relevantArtifactRepos": ["driver-repo", "support-repo"],
+      "currentCommit": {
+        "artifactSetId": "current-set",
+        "repos": {
+          "driver-repo": {"branch": "main", "sha": "1111111", "pushed": true},
+          "support-repo": {"branch": "main", "sha": "3333333", "pushed": true}
+        }
+      },
+      "acceptedCommit": {
+        "artifactSetId": "accepted-set",
+        "repos": {
+          "driver-repo": {"branch": "main", "sha": "1111111", "pushed": true},
+          "support-repo": {"branch": "main", "sha": "2222222", "pushed": true}
+        }
+      },
+      "codeRequired": true,
+      "runtimeRequired": true,
+      "codeState": {
+        "value": "verified",
+        "activeEvidence": [{"url": "https://example.invalid/code-evidence"}],
+        "supersededEvidence": []
+      },
+      "runtimeState": {
+        "value": "verified",
+        "activeEvidence": [{"url": "https://example.invalid/runtime-evidence"}],
+        "supersededEvidence": []
+      }
+    }
+  ],
+  "dependencies": []
+}

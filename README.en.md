@@ -1,132 +1,144 @@
-# Mochi Issue Flow Skill
+# Mochi Issue Flow
 
-[中文](README.md)
+[中文](README.md) · [Install](#install) · [Quick start](#quick-start) · [Protocol 30](#l3-flow-card-protocol) · [Contributing](CONTRIBUTING.md)
 
-Mochi Issue Flow is an **issue-action workflow SOP skill** for AI agents. It organizes requirement clarification, cross-repository collaboration, state recovery, handoff, and closeout around a durable issue-like carrier so that workflow state can be read, restored, synchronized, and audited.
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![Protocol](https://img.shields.io/badge/protocol-3.0-7c3aed.svg)](mochi-issue-flow/references/flow-card-schema.md)
+[![Skill](https://img.shields.io/badge/Agent%20Skill-carrier--neutral-0f766e.svg)](mochi-issue-flow/SKILL.md)
+[![Tests](https://img.shields.io/badge/tests-offline%20fixtures-0ea5e9.svg)](mochi-issue-flow/tests)
 
-In this project, **issue** is a generic concept, not only a GitHub Issue. Any object that can store body text, comments, links, status, and checklists can act as a workflow carrier:
+Mochi Issue Flow is an open-source collaboration skill for AI agents. It turns issues, tickets, and task cards into durable workflow carriers that can be recovered, audited, handed off, and accepted. It handles both single-repository work and multi-repository work shared by several agents.
 
-- Gitea issue
-- GitHub issue
-- Linear issue
-- Jira ticket
-- workflow task
-- project management card
-- any other durable system object with body, comments, and state
+It is not a copy of any company-specific process or issue platform. GitHub Issues, Gitea, Linear, Jira, and any carrier that preserves a body, comments, links, and state can be adapted.
 
-## Use Cases
+## What it solves
 
-Mochi Issue Flow is designed for work that needs issue-like carriers as the collaboration surface:
+- A new agent can recover the next action without reconstructing chat history.
+- Cross-repository work has traceable source, support, driver, acceptance owner, and next action instead of disconnected comments.
+- Multi-repository completion is not mistaken for “one repository has a commit”: it requires a complete artifact commit set and independent code/runtime evidence.
+- Retried or concurrent agents cannot casually overwrite current state: one Flow Card is edited only by the holder of a live lease.
+- The issue is authoritative and the registry/dashboard is a cache; blocked cache writes become an explicit pending-user-approval state instead of silent loss.
 
-- Single-repository work needs a stable current state, next action, and acceptance criteria.
-- One issue needs support from another repository, team, or agent.
-- Multi-repository work needs phased execution with entry, exit, and rollback criteria.
-- Existing collaboration needs to be recovered from issue body, comments, and links.
-- A task needs a self-contained handoff package for another agent.
-- Closeout needs checks for commits, verification, linked issues, acceptance, and state consistency.
+## Core model
 
-## Core Model
-
-Mochi Issue Flow routes collaboration into three levels:
-
-| Level | Scenario | Carrier Strategy |
+| Route | Use when | Minimum artifact |
 |---|---|---|
-| L1 single-carrier work | The current repository or task can finish independently | Store state in the current issue-like carrier without creating linked issues |
-| L2 linked issue flow | One source carrier needs support from one target repository, team, or agent | Create one bidirectional linked issue pair and keep source and target linked |
-| L3 staged flow | Multi-repository, multi-phase, multiple linked lines, or contract / phase gate work | Create a tracking issue and create only the linked issues required for the current phase |
+| L1 single carrier | One repository or owner can close the work | Current state, next action, acceptance evidence |
+| L2 linked support | A source needs one support repository, team, or agent | Bidirectional link and delivery packet |
+| L3 Flow Card | Multiple repositories, a dependency DAG, gates, concurrent agents, or formal acceptance | One canonical status comment in a tracking carrier |
 
-In L2 and L3 workflows, the issue-like carrier is the authority for workflow state. Registries, dashboards, local notes, and visualizations are caches or projections.
+Across all routes, **the carrier’s current state is authoritative; caches are projections.** L3 makes that state structured through a Flow Card.
 
-## User Interaction Principles
+## Install
 
-Mochi Issue Flow asks agents to present work state in user-readable language before exposing protocol fields.
-
-The user's main reading path should answer:
-
-- What is the current task?
-- What state is it in?
-- Who owns the current action?
-- What is the next action?
-- Is anything blocked?
-- Where are the linked carriers?
-- What conditions allow acceptance or closeout?
-
-Protocol fields such as `flowId`, `linkId`, `contractId`, and `phase` may be stored in issue bodies or extended sections, but they should not replace a readable current-state statement.
-
-## Installation
-
-Copy `mochi-issue-flow/` into a directory that supports Agent Skills:
+Copy the complete `mochi-issue-flow/` directory into a runtime-discoverable skills directory. Do not copy only `SKILL.md`: templates, references, validators, and fixtures are one release unit.
 
 ```bash
 cp -R mochi-issue-flow ~/.codex/skills/
-cp -R mochi-issue-flow ~/.claude/skills/
 cp -R mochi-issue-flow ~/.agents/skills/
+cp -R mochi-issue-flow ~/.claude/skills/
 ```
 
-If multiple runtimes share the same skill set, `~/.agents/skills/` is recommended.
+If several agent runtimes share capabilities, install one version in `~/.agents/skills/` and maintain it through a sync or package process rather than hand-copying diverging versions.
 
-## Repository Layout
+## Quick start
+
+### 1. Route before writing
+
+```text
+This work spans two repositories. Recover the current issue state first, then decide whether an L3 Flow Card is needed.
+```
+
+The skill reads carrier bodies, linked work, and recent decisive comments, then routes to L1, L2, L3, or read-only. Obtain user confirmation before creating linked work, moving ownership, suspending, or closing a flow.
+
+### 2. L2: request support that can be accepted
+
+```text
+This issue needs support from the frontend repository. Create bidirectional links and a delivery packet that a support agent can use directly.
+```
+
+Use `templates/delivery-packet.json` to pass the target, authoritative carrier, expected evidence, complete artifact set, and idempotency key to another agent. A human-readable note may accompany it but does not replace it.
+
+### 3. L3: create one Flow Card for multi-repository work
+
+Create the comment from `templates/flow-card-comment.md` on the tracking issue. At first `canonicalStatusCommentUrl` is `null`; once the carrier returns the comment URL, **edit that same comment** to backfill it and increment `statusRevision`. Every later state update edits this one comment.
+
+```bash
+python3 mochi-issue-flow/scripts/validate_flow_card.py flow-card.json
+python3 mochi-issue-flow/scripts/audit_flow.py flow-card.json
+```
+
+The first command validates structure. The second audits an offline JSON snapshot. It exits with status `2` for error findings, which makes it usable as an automation gate.
+
+## L3 Flow Card protocol
+
+A Flow Card is JSON in the authoritative comment, enclosed by HTML sentinels so people and scripts can read it together:
+
+````md
+<!-- flow-card:start v3 -->
+```json
+{ "protocolVersion": "3.0", "statusRevision": 7 }
+```
+<!-- flow-card:end -->
+````
+
+See the complete [schema](mochi-issue-flow/references/flow-card-schema.md) and [template](mochi-issue-flow/templates/flow-card-comment.md). The key constraints are:
+
+| Concept | Constraint |
+|---|---|
+| One authority | `canonicalStatusCommentUrl` points to the only current-state comment; bootstrap and backfill it once. |
+| Optimistic revision | `statusRevision` increments on every successful edit; reread owner and revision before a write. |
+| Bridge | Each cross-repository work unit has a stable `bridgeId`; a DAG records its dependencies. |
+| Complete commit set | Both `currentCommit` and `acceptedCommit` cover all `relevantArtifactRepos` for the Bridge. |
+| Dual-axis acceptance | `codeState` and `runtimeState` are verified independently; only required axes block completion. |
+| Commit drift | On mismatch, active evidence moves to `supersededEvidence` and required axes become `needs-reverify`. |
+| Concurrency protection | `flowExecutionLease`, heartbeat, expiry detection, and explicit transfer prevent duplicate agents and writes. |
+| Registry | Project policy may make `registry.requiredForDone` block final done; an approved waiver is the only exception. |
+
+A coordination state such as `ready-for-acceptance` never substitutes for `flowCodeState` and `flowRuntimeState`. Final completion requires both derived axes to satisfy the current required Bridge set.
+
+## Use the correct workspace
+
+Before cross-repository verification, record every relevant repository’s path, branch, worktree, and SHA. Use a direct branch only when it is clean, dedicated, and unowned by a concurrent agent; use a worktree for shared branches, isolation, or parallel work.
+
+A new worktree does not automatically materialize Git-ignored local skills, configuration, or generated files. Treat the presence of every required file as a preflight gate. Missing material means verification cannot begin under a partial protocol. See [workspace preflight](mochi-issue-flow/references/workspace-preflight.md).
+
+## Verification and tests
+
+The core validator and auditor use only the Python standard library and read only offline JSON. Carrier APIs (GitHub, Gitea, Jira, and so on) belong to adapter layers, so core unit tests stay repeatable without a network or remote branches.
+
+```bash
+python3 -m unittest discover -s mochi-issue-flow/tests -p 'test_*.py' -v
+```
+
+The [S1–S4 matrix](mochi-issue-flow/references/scenario-evidence-matrix.md) defines scenario evidence. Before closing an L3 Flow, audit missing status, commit drift, deferred registry work, stalled leases, and runtime blockers.
+
+## Repository layout
 
 ```text
 mochi-issue-flow-skill/
-|-- README.md
-|-- README.en.md
-|-- VERSION
-`-- mochi-issue-flow/
-    |-- SKILL.md
-    |-- agents/
-    |   `-- openai.yaml
-    `-- references/
-        |-- carrier-model.md
-        |-- exceptions.md
-        |-- gitea-cli.md
-        |-- templates.md
-        `-- testing.md
+├── LICENSE                         # Apache-2.0
+├── NOTICE
+├── README.md / README.en.md
+├── CONTRIBUTING.md
+├── VERSION
+└── mochi-issue-flow/
+    ├── SKILL.md                    # concise agent entry point
+    ├── agents/openai.yaml
+    ├── templates/                  # Flow Card, issue, evidence, delivery packet
+    ├── references/                 # schema, states, leases, preflight, scenarios
+    ├── scripts/                    # offline validate / audit
+    └── tests/                      # repeatable fixture tests
 ```
 
-## Capabilities
+## Security and privacy boundary
 
-- **Intent routing**: Classify user input, issue links, repository signals, and existing state into L1 / L2 / L3 / read-only routes.
-- **State recovery**: Recover workflow state from carrier body, decisive comments, labels, checklists, and registry caches.
-- **Linked issue creation**: Create source / target backlinks for cross-repository or cross-team collaboration.
-- **Staged execution**: Use a tracking issue to manage phases, contracts, gates, and current ownership.
-- **Exception handling**: Handle cache mismatch, stale state, incompatible protocol version, failed gates, valid suspension, and L2-to-L3 escalation.
-- **Handoff and closeout**: Produce a handoff package and verify evidence, linked carriers, and acceptance before closeout.
+The public release contains generic protocol and templates only. Never add local paths, internal domains, private repositories, issue IDs, tokens, accounts, customer data, or business-sensitive data. Project-specific adapters, labels, repository mappings, and approval rules belong in private configuration or a project adapter layer.
 
-## Gitea and gitea-cli
+## License
 
-Mochi Issue Flow is carrier-neutral and does not depend on a specific issue platform. One common implementation uses Gitea issues as carriers and `gitea-cli` to read issues, create linked issues, write comments, and update state.
+This project is licensed under the [Apache License 2.0](LICENSE) (SPDX: `Apache-2.0`). It permits commercial use, modification, and redistribution and provides an explicit contributor patent grant. Preserve the license, NOTICE, and required modification notices. The license does not grant trademark rights.
 
-Gitea guidance lives in `mochi-issue-flow/references/gitea-cli.md`. It contains generic command shapes and safe defaults only; it does not contain private hosts, organizations, repositories, or credentials.
+## Contributing
 
-## Examples
-
-Create a linked issue:
-
-```text
-This issue needs support from another repository. Create a linked issue.
-```
-
-Recover existing work:
-
-```text
-Continue this issue and recover the current state first.
-```
-
-Create staged coordination:
-
-```text
-This change spans multiple repositories and needs staged delivery with acceptance gates.
-```
-
-## Security and Sanitization
-
-This repository contains only generic skill files, templates, and references. Public content should not include:
-
-- local repository paths
-- private domains or internal service URLs
-- access tokens, secrets, or account credentials
-- internal issue numbers or private project names
-- sensitive customer, employee, payroll, or attendance data
-
-Platform configuration, private repository mappings, internal labels, and organization-specific workflows should live in a private distribution or local configuration.
+Issues and pull requests are welcome for protocol, template, and adapter-boundary improvements. Run the offline tests before submitting, keep `SKILL.md` concise, and ensure new material contains no private context. See [CONTRIBUTING.md](CONTRIBUTING.md).

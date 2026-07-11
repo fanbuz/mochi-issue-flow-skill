@@ -2,6 +2,8 @@
 
 These templates are intentionally carrier-neutral. Replace "issue" with ticket, task, request, card, or another durable workflow carrier when needed.
 
+For V3 staged multi-repository work, use `../templates/flow-card-comment.md` as the one canonical current-state record; use `../templates/capability-issue.md`, `../templates/migration-issue.md`, `../templates/evidence-comment.md`, and `../templates/delivery-packet.json` for supporting artifacts.
+
 ## Recognition Card
 
 ```md

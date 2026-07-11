@@ -1,4 +1,4 @@
 interface:
   display_name: "Mochi Issue Flow"
-  short_description: "Issue-driven workflow SOP"
-  default_prompt: "Use $mochi-issue-flow to classify this request, recover existing issue-flow state, and guide the next workflow action."
+  short_description: "Issue-driven delivery coordination"
+  default_prompt: "Use $mochi-issue-flow to classify this request, recover authoritative carrier state, and, for multi-repository work, operate a V3 Flow Card with complete artifact sets, leases, and dual-axis acceptance."
