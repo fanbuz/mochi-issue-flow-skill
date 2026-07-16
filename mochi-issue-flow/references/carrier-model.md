@@ -14,13 +14,23 @@ An issue-like carrier is any durable object that can preserve workflow state acr
 
 ## Authority Order
 
+For L1 and L2:
+
 1. Carrier body current-state block
 2. Decisive comments linked from the current-state block
 3. Labels/status/checklists
 4. Registry/index cache
 5. Local notes or dashboards
 
-If lower levels disagree with higher levels, update the lower level or stop and report the mismatch.
+For L3:
+
+1. Canonical Flow Card comment
+2. A summary derived from that same card and bound to its revision/hash
+3. Carrier body summary and decisive evidence links
+4. Registry/index cache
+5. Local notes or dashboards
+
+If lower levels disagree with higher levels, mark the projection out-of-sync, update it, or stop and report the mismatch. A hand-written summary never outranks the canonical L3 card.
 
 ## Staleness
 

@@ -1,0 +1,8 @@
+{
+  "canonicalStatusCommentUrl": "https://carrier.example/issues/1#comment-2",
+  "canonicalComment": {
+    "url": "https://carrier.example/issues/1#comment-2",
+    "updatedAt": "2026-07-16T10:00:00Z",
+    "body": "## Flow status\n\n<!-- flow-card:start v3 -->\n```json\n{\"protocolVersion\":\"3.0\",\"flowId\":\"status-read-example\",\"statusRevision\":7,\"canonicalStatusCommentUrl\":\"https://carrier.example/issues/1#comment-2\",\"concurrencyControl\":{\"mode\":\"revision-only\"},\"registry\":{\"status\":\"synchronized\",\"lastSyncedStatusRevision\":7,\"requiredForDone\":false,\"waiver\":null},\"bridges\":[{\"bridgeId\":\"delivery-example\",\"relevantArtifactRepos\":[\"driver-repo\"],\"currentCommit\":{\"artifactSetId\":\"set-7\",\"repos\":{\"driver-repo\":{\"branch\":\"main\",\"sha\":\"7777777\"}}},\"acceptedCommit\":{\"artifactSetId\":\"set-7\",\"repos\":{\"driver-repo\":{\"branch\":\"main\",\"sha\":\"7777777\"}}},\"codeRequired\":true,\"runtimeRequired\":true,\"codeState\":{\"value\":\"verified\",\"activeEvidence\":[],\"supersededEvidence\":[],\"archiveRefs\":[]},\"runtimeState\":{\"value\":\"blocked\",\"activeEvidence\":[],\"supersededEvidence\":[],\"archiveRefs\":[],\"blockers\":[{\"code\":\"environment-unavailable\",\"summary\":\"test environment is unavailable\"}]},\"nextOwner\":\"runtime-owner\",\"nextAction\":\"restore the test environment\"}],\"dependencies\":[]}\n```\n<!-- flow-card:end -->"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "small": {
+    "bridgeCount": 1,
+    "supersededEvidencePerAxis": 0,
+    "blockersPerBridge": 0
+  },
+  "medium": {
+    "bridgeCount": 3,
+    "supersededEvidencePerAxis": 4,
+    "blockersPerBridge": 2
+  },
+  "large": {
+    "bridgeCount": 8,
+    "supersededEvidencePerAxis": 24,
+    "blockersPerBridge": 6
+  }
+}
