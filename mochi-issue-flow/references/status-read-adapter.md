@@ -20,6 +20,15 @@
 
 Do not expose raw and parsed copies, transport `content` plus `structuredContent`, or unrelated comments. Treat zero or multiple URL matches as an error.
 
+The exact parser accepts optional attributes on both delimiters, including legacy or generated forms such as:
+
+```text
+<!-- flow-card:start flowId=flow-example protocol=3.0 -->
+<!-- flow-card:end flowId=flow-example -->
+```
+
+If either delimiter declares `flowId`, it must match the canonical JSON. Unpaired, duplicate, malformed, or mismatched delimiters return stable `flow-card-*` errors. Stop on those errors. Never recover a normal status read by extracting an arbitrary fenced JSON object; use an explicit compatibility migration when the carrier is malformed.
+
 ## Compact summary
 
 For a read-only status query, run `scripts/flow_status.py` inside the adapter/tool boundary and return only its summary to the model. The deterministic summary contains:

@@ -1,6 +1,6 @@
 # Flow Card schema (protocol 3.0)
 
-The Flow Card is JSON inside the canonical status comment sentinel block. `statusRevision` is a monotonically increasing integer used for optimistic ownership checks. The first posted card has `canonicalStatusCommentUrl: null`; the creator immediately edits the returned comment URL into that same card as revision 2.
+The Flow Card is JSON inside the canonical status comment sentinel block. Both `flow-card:start` and `flow-card:end` may carry optional attributes. If a delimiter declares `flowId`, it must match the JSON `flowId`; one comment must contain exactly one paired block. `statusRevision` is a monotonically increasing integer used for optimistic ownership checks. The first posted card has `canonicalStatusCommentUrl: null`; the creator immediately edits the returned comment URL into that same card as revision 2.
 
 | Field | Required | Meaning |
 |---|---:|---|
@@ -25,4 +25,4 @@ One delivery mainline has one active Flow Card. After S4 migration, former cards
 
 `registry.status: synchronized` is trustworthy only when `registry.lastSyncedStatusRevision` equals the card's `statusRevision`. A failed projection update sets the registry status to `out-of-sync` and preserves the last successfully synchronized revision.
 
-Use `scripts/validate_flow_card.py` for structural validation. It is deliberately carrier-neutral and performs no network access.
+Use `scripts/validate_flow_card.py` for structural validation and `scripts/flow_status.py` for exact sentinel extraction. They are deliberately carrier-neutral and perform no network access.

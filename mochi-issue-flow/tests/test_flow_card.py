@@ -320,6 +320,15 @@ class PublicSkillShapeTest(unittest.TestCase):
         self.assertIn("currentCommit", text)
         self.assertIn("acceptedCommit", text)
 
+    def test_skill_declares_user_facing_update_and_progressive_loading_contracts(self):
+        text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("Outcome first", text)
+        self.assertIn("Load only what the route needs", text)
+        self.assertIn("Do not read their source during normal operation", text)
+        self.assertIn("references/user-facing-messages.md", text)
+        self.assertIn("references/conditional-comment-edit.md", text)
+
     def test_flow_card_template_contains_parse_sentinels_and_revision(self):
         template = (SKILL_DIR / "templates" / "flow-card-comment.md").read_text(encoding="utf-8")
 
@@ -333,7 +342,7 @@ class PublicSkillShapeTest(unittest.TestCase):
         readme_en = (RELEASE_ROOT / "README.en.md").read_text(encoding="utf-8")
         license_text = (RELEASE_ROOT / "LICENSE").read_text(encoding="utf-8")
 
-        self.assertEqual("3.1.0", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
+        self.assertEqual("3.2.0", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
         self.assertIn("Apache-2.0", readme_zh)
         self.assertIn("Flow Card", readme_zh)
         self.assertIn("Apache-2.0", readme_en)
@@ -351,6 +360,21 @@ class PublicSkillShapeTest(unittest.TestCase):
 
         self.assertNotIn("ehr-server", public_text)
         self.assertNotIn("oa-web", public_text)
+
+    def test_bilingual_user_facing_scenarios_lead_with_business_outcomes(self):
+        scenarios = load_fixture("user-facing-message-scenarios.json")
+        forbidden_leads = ("l3", "flow card", "bridge", "lease", "registry", "s1")
+
+        self.assertEqual(
+            {"read-only", "before-write", "write-success", "write-failure", "waiting-approval", "closeout"},
+            {item["scenario"] for item in scenarios},
+        )
+        self.assertEqual({"zh", "en"}, {item["language"] for item in scenarios})
+        for item in scenarios:
+            opening = item["message"].split("\n\n", 1)[0].strip().lower()
+            self.assertFalse(opening.startswith(forbidden_leads), item["scenario"])
+            for phrase in item["mustContain"]:
+                self.assertIn(phrase, item["message"])
 
     @unittest.skipUnless(RELEASE_ROOT, "release metadata is not part of an installed skill package")
     def test_python_bytecode_is_not_a_release_artifact(self):

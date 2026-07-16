@@ -19,6 +19,9 @@ It is not a copy of any company-specific process or issue platform. GitHub Issue
 - Retried or concurrent agents cannot casually overwrite current state: each card explicitly declares lease or revision-only concurrency control.
 - The issue is authoritative and the registry/dashboard is a revision-bound cache; failed projection writes become explicit pending or out-of-sync state.
 - Status queries can read a compact canonical-comment summary without loading complete comment history.
+- Sentinels with or without attributes are parsed exactly; ambiguous input stops instead of falling back to arbitrary JSON.
+- Canonical comment edits use revision/hash preconditions plus post-write rereads, with residual races declared when native CAS is unavailable.
+- Read, mutation, migration, closeout, and diagnosis routes have bounded working sets; normal script execution does not load script source.
 
 ## Core model
 
@@ -72,6 +75,13 @@ python3 mochi-issue-flow/scripts/audit_flow.py --mode closeout flow-card.json
 
 The first command validates structure, the second performs routine audit, and the third returns explicit `closeoutEligible`. Errors or ineligible closeout exit with status `2`, which makes them usable as automation gates.
 
+For an existing canonical comment, prepare revision/hash preconditions before the provider edit and verify the exact saved comment afterward:
+
+```bash
+python3 mochi-issue-flow/scripts/conditional_comment_edit.py prepare request.json live-snapshot.json --now 2026-07-16T10:00:00Z
+python3 mochi-issue-flow/scripts/conditional_comment_edit.py verify request.json saved-snapshot.json
+```
+
 ## L3 Flow Card protocol
 
 A Flow Card is JSON in the authoritative comment, enclosed by HTML sentinels so people and scripts can read it together:
@@ -90,7 +100,7 @@ See the complete [schema](mochi-issue-flow/references/flow-card-schema.md) and [
 |---|---|
 | One authority | `canonicalStatusCommentUrl` points to the only current-state comment; bootstrap and backfill it once. |
 | Compact status read | A summary is derived from canonical JSON and bound to `sourceStatusRevision` plus its content hash. |
-| Optimistic revision | `statusRevision` increments on every successful edit; reread owner and revision before a write. |
+| Conditional revision | `statusRevision` increments on every successful edit; verify revision/hash and lease owner before writing, then reread the target revision/hash. |
 | Bridge | Each cross-repository work unit has a stable `bridgeId`; a DAG records its dependencies. |
 | Complete commit set | Both `currentCommit` and `acceptedCommit` cover all `relevantArtifactRepos` for the Bridge. |
 | Dual-axis acceptance | `codeState` and `runtimeState` are verified independently; only required axes block completion. |
@@ -101,7 +111,7 @@ See the complete [schema](mochi-issue-flow/references/flow-card-schema.md) and [
 
 A coordination state such as `ready-for-acceptance` never substitutes for `flowCodeState` and `flowRuntimeState`. Final completion requires closeout audit to confirm every required axis and synchronization gate.
 
-Use `scripts/flow_status.py` for status reads, `scripts/archive_flow_evidence.py` for evidence archives, and `scripts/check_context_budget.py` for context budgets. A platform adapter filters to the canonical comment before model exposure and returns one normalized payload.
+Use `scripts/flow_status.py` for status reads, `scripts/conditional_comment_edit.py` for conditional edits, `scripts/archive_flow_evidence.py` for evidence archives, and `scripts/check_context_budget.py` for context budgets. A platform adapter filters to the canonical comment before model exposure and returns one normalized payload. Execute scripts directly during normal operation and load their source only when diagnosing a script failure.
 
 ## Use the correct workspace
 

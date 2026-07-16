@@ -1,6 +1,6 @@
 ## Flow status
 
-This comment is the single current-state record for the flow. Edit it in place only after satisfying the declared concurrency control. Put generated human context above the JSON and keep the sentinel block machine-readable.
+This comment is the single current-state record for the flow. Edit it in place only after satisfying the declared concurrency control. Put generated human context above the JSON and keep the sentinel block machine-readable. Optional sentinel attributes are allowed only when their `flowId` stays synchronized with the JSON.
 
 <!-- flow-card:start v3 -->
 ```json
@@ -68,4 +68,4 @@ This comment is the single current-state record for the flow. Edit it in place o
 ```
 <!-- flow-card:end -->
 
-Bootstrap procedure: create this comment with `canonicalStatusCommentUrl: null`; after the carrier returns its URL, edit this same comment, set that URL, increment `statusRevision`, and retain the sentinel delimiters. Keep registry status `not-configured` unless the project uses one. A registry adapter binds its successful projection to the target revision and marks any partial failure `out-of-sync`; a failed canonical edit leaves the previous revision authoritative.
+Bootstrap procedure: create this comment with `canonicalStatusCommentUrl: null`; after the carrier returns its URL, edit this same comment, set that URL, increment `statusRevision`, and retain the sentinel delimiters. Later edits follow `references/conditional-comment-edit.md` and verify the saved revision/hash before registry projection. Keep registry status `not-configured` unless the project uses one. A registry adapter binds its successful projection to the target revision and marks any partial failure `out-of-sync`; a failed canonical edit leaves the previous revision authoritative.

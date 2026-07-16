@@ -24,6 +24,14 @@ Ask for confirmation before creating linked work, moving ownership, suspending, 
 
 Before an operation, give the user a short progress update in plain language. State the purpose of this step, what will be checked or changed, and any important non-effect. Lead with the outcome the user can recognize; keep implementation labels in the carrier, evidence, or logs unless the user asks for them.
 
+Use this user-facing update contract:
+
+1. **Outcome first:** say what business result will be checked or changed.
+2. **Data impact:** say whether the step is read-only, may write, succeeded, failed, or rolled back.
+3. **Stop/next point:** name the real blocker or the next action; when approval is needed, state exactly what the approved step will do.
+
+The opening paragraph must stand on its own without protocol vocabulary. Do not replace a real result such as “the schedule transaction failed and later writes stopped” with “the flow is blocked.” Put revision, lease, registry, Bridge, and audit details after the plain-language result or in the carrier. Read `references/user-facing-messages.md` only when authoring or reviewing message examples; it is not part of the normal execution working set.
+
 - Translate internal names into their user-visible meaning. For example, call a health probe “confirming the test environment is available”, a shared ID “the shared test data needed for this run”, and a seed or join request “starting a real business operation”.
 - Do not lead a progress update with labels or shorthand such as `L3`, `Bridge`, `Flow Card`, `lease`, `S1`, `probe`, `sharedId`, `seed`, or `join`.
 - Use one or two complete sentences. Explain a technical term only when it affects the user's decision or when the user has asked for technical detail.
@@ -34,6 +42,20 @@ For example, write:
 > 我先确认测试环境是否已经准备好：相关服务能否正常响应、大家是否使用同一套测试配置，以及本次测试所需的共享测试数据是否齐全。这一步只读取状态，不会修改数据或启动实际业务操作。
 
 Do not write a string of internal checks such as “三后端与模拟器健康、统一配置 probe、以及 S1 必需的 sharedId”。
+
+## Load only what the route needs
+
+Execute bundled scripts directly. Do not read their source during normal operation; load script source only after a script failure when implementation diagnosis is necessary, and record that escalation reason. Load one route-specific reference at a time instead of opening the whole reference set.
+
+| Route | Minimal working set |
+|---|---|
+| Read-only status | Exact canonical comment, `scripts/flow_status.py` output, and `references/status-read-adapter.md`; stop when the revision/hash-bound summary answers the request |
+| Conditional mutation | Full current card plus `references/conditional-comment-edit.md`; run routine audit, preflight the expected revision/hash, edit in place, then reread |
+| Migration/archive | Full current card plus `references/evidence-archive-and-migration.md` |
+| Closeout | Full current card and `scripts/audit_flow.py --mode closeout`; load a reference only to resolve a reported failure |
+| Runtime diagnosis | Current compact summary plus the smallest decisive failure artifact; do not reload flow history or full cards unless mutation becomes necessary |
+
+If exact sentinel parsing fails, stop and report its stable error code. Do not fall back to an arbitrary JSON fence. Load migration guidance only when the carrier actually needs an explicit compatibility migration. Use `scripts/check_context_budget.py` route-bundle checks to keep these working sets bounded.
 
 ## L3 Flow Card protocol
 
@@ -59,7 +81,9 @@ Registries remain caches. `synchronized` is valid only when `registry.lastSynced
 - `references/issue-registry-delivery.md` — carrier, registry, and Codex-agent delivery
 - `references/scenario-evidence-matrix.md` — S1–S4 acceptance matrix
 - `references/status-read-adapter.md` — direct read and compact summary contract
+- `references/conditional-comment-edit.md` — revision/hash-bound in-place edit and provider mapping
 - `references/evidence-archive-and-migration.md` — two-phase archive and duplicate-card consolidation
 - `references/context-budget.md` — deterministic character and optional token budgets
+- `references/user-facing-messages.md` — bilingual examples for authoring/review, not normal execution
 
 Public templates must stay carrier-neutral: do not include private repositories, paths, credentials, or internal URLs.

@@ -14,15 +14,26 @@ from typing import Any
 from validate_flow_card import validate_flow_card
 
 
+FLOW_CARD_START_PATTERN = re.compile(r"<!--\s*flow-card:start\b[^>]*-->")
+FLOW_CARD_END_PATTERN = re.compile(r"<!--\s*flow-card:end\b[^>]*-->")
 FLOW_CARD_PATTERN = re.compile(
-    r"<!--\s*flow-card:start[^>]*-->\s*```json\s*(\{.*?\})\s*```\s*<!--\s*flow-card:end\s*-->",
+    r"<!--\s*flow-card:start\b(?P<start_attrs>[^>]*)-->"
+    r"\s*```json\s*(?P<card>.*?)\s*```\s*"
+    r"<!--\s*flow-card:end\b(?P<end_attrs>[^>]*)-->",
     re.DOTALL,
+)
+FLOW_ID_ATTR_PATTERN = re.compile(
+    r"(?:^|\s)flowId\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s]+))"
 )
 DISALLOWED_ADAPTER_KEYS = {"raw", "parsed", "content", "structuredContent"}
 
 
 class StatusReadError(ValueError):
     """Raised when an adapter snapshot cannot identify one canonical card."""
+
+    def __init__(self, message: str, code: str = "status-read-invalid") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def canonical_json(value: Any) -> str:
@@ -34,16 +45,68 @@ def canonical_card_hash(card: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def _sentinel_flow_id(attributes: str) -> str | None:
+    matches = list(FLOW_ID_ATTR_PATTERN.finditer(attributes))
+    if len(matches) > 1:
+        raise StatusReadError(
+            "Flow Card sentinel contains duplicate flowId attributes",
+            code="flow-card-sentinel-attributes-invalid",
+        )
+    if not matches:
+        if re.search(r"(?:^|\s)flowId(?:\s|=|$)", attributes):
+            raise StatusReadError(
+                "Flow Card sentinel contains an invalid flowId attribute",
+                code="flow-card-sentinel-attributes-invalid",
+            )
+        return None
+    match = matches[0]
+    return next(value for value in match.groups() if value is not None)
+
+
 def extract_flow_card(comment_body: str) -> dict[str, Any]:
-    matches = FLOW_CARD_PATTERN.findall(comment_body)
+    start_count = len(FLOW_CARD_START_PATTERN.findall(comment_body))
+    end_count = len(FLOW_CARD_END_PATTERN.findall(comment_body))
+    if start_count == 0 and end_count == 0:
+        raise StatusReadError(
+            "canonical comment does not contain a Flow Card sentinel block",
+            code="flow-card-not-found",
+        )
+    if start_count != 1 or end_count != 1:
+        raise StatusReadError(
+            "canonical comment must contain exactly one paired Flow Card sentinel block",
+            code="flow-card-ambiguous",
+        )
+
+    matches = list(FLOW_CARD_PATTERN.finditer(comment_body))
     if len(matches) != 1:
-        raise StatusReadError("canonical comment does not contain one Flow Card sentinel block")
+        raise StatusReadError(
+            "canonical Flow Card sentinel block is malformed",
+            code="flow-card-malformed",
+        )
+    match = matches[0]
     try:
-        card = json.loads(matches[0])
+        card = json.loads(match.group("card"))
     except json.JSONDecodeError as error:
-        raise StatusReadError(f"canonical Flow Card JSON is invalid: {error.msg}") from error
+        raise StatusReadError(
+            f"canonical Flow Card JSON is invalid: {error.msg}",
+            code="flow-card-invalid-json",
+        ) from error
     if not isinstance(card, dict):
-        raise StatusReadError("canonical Flow Card must be a JSON object")
+        raise StatusReadError(
+            "canonical Flow Card must be a JSON object",
+            code="flow-card-invalid-type",
+        )
+
+    start_flow_id = _sentinel_flow_id(match.group("start_attrs"))
+    end_flow_id = _sentinel_flow_id(match.group("end_attrs"))
+    declared_flow_ids = [flow_id for flow_id in (start_flow_id, end_flow_id) if flow_id is not None]
+    if declared_flow_ids and (
+        len(set(declared_flow_ids)) != 1 or declared_flow_ids[0] != card.get("flowId")
+    ):
+        raise StatusReadError(
+            "Flow Card sentinel flowId does not match the canonical JSON flowId",
+            code="flow-card-flow-id-mismatch",
+        )
     return card
 
 
@@ -225,7 +288,10 @@ def main(argv: list[str]) -> int:
         print(json.dumps({"summary": build_summary(card)}, ensure_ascii=False, sort_keys=True))
         return 0
     except (json.JSONDecodeError, StatusReadError) as error:
-        print(json.dumps({"error": str(error)}, ensure_ascii=False), file=sys.stderr)
+        payload = {"error": str(error)}
+        if isinstance(error, StatusReadError):
+            payload["errorCode"] = error.code
+        print(json.dumps(payload, ensure_ascii=False), file=sys.stderr)
         return 2
 
 
