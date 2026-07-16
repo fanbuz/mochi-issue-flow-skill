@@ -22,6 +22,7 @@ It is not a copy of any company-specific process or issue platform. GitHub Issue
 - Sentinels with or without attributes are parsed exactly; ambiguous input stops instead of falling back to arbitrary JSON.
 - Canonical comment edits use revision/hash preconditions plus post-write rereads, with residual races declared when native CAS is unavailable.
 - Read, mutation, migration, closeout, and diagnosis routes have bounded working sets; normal script execution does not load script source.
+- User-facing progress keeps only recognizable results, actual impact, blockers, and next actions; internal revision, hash, lease, and registry transitions are not narrated one by one.
 
 ## Core model
 
@@ -81,6 +82,12 @@ For an existing canonical comment, prepare revision/hash preconditions before th
 python3 mochi-issue-flow/scripts/conditional_comment_edit.py prepare request.json live-snapshot.json --now 2026-07-16T10:00:00Z
 python3 mochi-issue-flow/scripts/conditional_comment_edit.py verify request.json saved-snapshot.json
 ```
+
+### 4. Filter internal task-chain chatter
+
+Flow Card reads, conditional edits, revision/hash checks, lease heartbeats, registry synchronization, and repeated validations are internal execution records. By default, aggregate adjacent internal events into one understandable update that states the achieved result, data impact, concrete blocker, and next action. Show protocol fields or transitions only when the user asks for technical detail or when a concurrency conflict changes the outcome or decision.
+
+For example, do not narrate “revision 18 saved, hash locked, code axis verified, runtime axis blocked.” Say: “The previous result has been recovered and checked for consistency. The code change is accepted, but the integration environment still prevents completion; next I’ll work on that environment issue.”
 
 ## L3 Flow Card protocol
 

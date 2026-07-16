@@ -1,4 +1,4 @@
 interface:
   display_name: "Mochi Issue Flow"
   short_description: "Issue-driven delivery coordination"
-  default_prompt: "使用 $mochi-issue-flow 协调这项工作：先用人话说明接下来要做什么和会不会产生实际改动；再恢复当前任务状态，并按需要处理跨仓库协作与验收。"
+  default_prompt: "使用 $mochi-issue-flow 协调这项工作：只向我播报可理解的结果、实际影响、阻塞和下一步，隐藏内部任务链流转，再恢复当前态并处理跨仓协作与验收。"

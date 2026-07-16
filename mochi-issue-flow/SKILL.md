@@ -20,9 +20,9 @@ Read the carrier body, linked work, and latest decisive comments. Choose one rou
 
 Ask for confirmation before creating linked work, moving ownership, suspending, or closing a flow. Use `references/carrier-model.md` for L1/L2 and `references/flow-card-schema.md` for L3.
 
-## Speak to people, not the protocol
+## Keep protocol chatter out of user updates
 
-Before an operation, give the user a short progress update in plain language. State the purpose of this step, what will be checked or changed, and any important non-effect. Lead with the outcome the user can recognize; keep implementation labels in the carrier, evidence, or logs unless the user asks for them.
+Treat Flow Card operations as internal bookkeeping, not user-visible milestones. Give a short plain-language progress update only when starting a meaningful phase, reaching an observable result, encountering a blocker or risk, needing a user decision, or completing the work. During long-running work, use a plain-language heartbeat when required, but describe the recognizable work rather than the bookkeeping underneath it.
 
 Use this user-facing update contract:
 
@@ -30,11 +30,18 @@ Use this user-facing update contract:
 2. **Data impact:** say whether the step is read-only, may write, succeeded, failed, or rolled back.
 3. **Stop/next point:** name the real blocker or the next action; when approval is needed, state exactly what the approved step will do.
 
-The opening paragraph must stand on its own without protocol vocabulary. Do not replace a real result such as “the schedule transaction failed and later writes stopped” with “the flow is blocked.” Put revision, lease, registry, Bridge, and audit details after the plain-language result or in the carrier. Read `references/user-facing-messages.md` only when authoring or reviewing message examples; it is not part of the normal execution working set.
+Apply this visibility filter before sending commentary or the final answer:
+
+- Suppress individual carrier reads, Flow Card writes, revision/hash checks, lease heartbeats, registry projection, evidence-format synchronization, and validation passes. Aggregate the whole internal sequence into one update after it produces a result the user can recognize.
+- Do not repeat the same result merely because its evidence, cache, or carrier record was updated. Do not narrate files, commands, tool calls, or protocol state transitions unless the user asked for an execution trace.
+- Keep identifiers and protocol labels such as `Flow Card`, `Bridge`, `canonical`, `revision`, `hash`, `lease`, `registry`, scenario IDs, and code/runtime axes in the carrier, evidence, or logs by default. Mention them only when the user requests protocol detail or when an integrity conflict changes the outcome or requires a decision; even then, explain the practical effect first.
+- Keep each progress update to one or two complete sentences. The final answer summarizes outcomes, unresolved risks, and next actions, not the internal event chain.
+
+The opening paragraph must stand on its own without protocol vocabulary. Do not replace a real result such as “the schedule transaction failed and later writes stopped” with “the flow is blocked.” Read `references/user-facing-messages.md` only when authoring or reviewing message examples; it is not part of the normal execution working set.
 
 - Translate internal names into their user-visible meaning. For example, call a health probe “confirming the test environment is available”, a shared ID “the shared test data needed for this run”, and a seed or join request “starting a real business operation”.
 - Do not lead a progress update with labels or shorthand such as `L3`, `Bridge`, `Flow Card`, `lease`, `S1`, `probe`, `sharedId`, `seed`, or `join`.
-- Use one or two complete sentences. Explain a technical term only when it affects the user's decision or when the user has asked for technical detail.
+- Explain a technical term only when it affects the user's decision or when the user has asked for technical detail.
 - Say “this step only checks status; it will not change data or start a real operation” when the action is read-only. Do not list low-level requests that will not be sent unless that distinction matters to the user.
 
 For example, write:
@@ -42,6 +49,8 @@ For example, write:
 > 我先确认测试环境是否已经准备好：相关服务能否正常响应、大家是否使用同一套测试配置，以及本次测试所需的共享测试数据是否齐全。这一步只读取状态，不会修改数据或启动实际业务操作。
 
 Do not write a string of internal checks such as “三后端与模拟器健康、统一配置 probe、以及 S1 必需的 sharedId”。
+
+After a multi-step recovery, do not write “lease recovered, revision 18 saved, canonical hash locked, code axis verified, runtime axis blocked.” Write “The previous result has been recovered and checked for consistency. The code change is accepted, but the integration environment still prevents completion; next I’ll work on that environment issue.”
 
 ## Load only what the route needs
 

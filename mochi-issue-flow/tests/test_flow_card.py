@@ -324,6 +324,9 @@ class PublicSkillShapeTest(unittest.TestCase):
         text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("Outcome first", text)
+        self.assertIn("Treat Flow Card operations as internal bookkeeping", text)
+        self.assertIn("Aggregate the whole internal sequence into one update", text)
+        self.assertIn("Do not repeat the same result", text)
         self.assertIn("Load only what the route needs", text)
         self.assertIn("Do not read their source during normal operation", text)
         self.assertIn("references/user-facing-messages.md", text)
@@ -342,7 +345,7 @@ class PublicSkillShapeTest(unittest.TestCase):
         readme_en = (RELEASE_ROOT / "README.en.md").read_text(encoding="utf-8")
         license_text = (RELEASE_ROOT / "LICENSE").read_text(encoding="utf-8")
 
-        self.assertEqual("3.2.0", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
+        self.assertEqual("3.2.1", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
         self.assertIn("Apache-2.0", readme_zh)
         self.assertIn("Flow Card", readme_zh)
         self.assertIn("Apache-2.0", readme_en)
@@ -366,13 +369,23 @@ class PublicSkillShapeTest(unittest.TestCase):
         forbidden_leads = ("l3", "flow card", "bridge", "lease", "registry", "s1")
 
         self.assertEqual(
-            {"read-only", "before-write", "write-success", "write-failure", "waiting-approval", "closeout"},
+            {
+                "read-only",
+                "before-write",
+                "write-success",
+                "write-failure",
+                "waiting-approval",
+                "multi-step-recovery",
+                "closeout",
+            },
             {item["scenario"] for item in scenarios},
         )
         self.assertEqual({"zh", "en"}, {item["language"] for item in scenarios})
         for item in scenarios:
             opening = item["message"].split("\n\n", 1)[0].strip().lower()
             self.assertFalse(opening.startswith(forbidden_leads), item["scenario"])
+            for term in ("flow card", "canonical", "revision", "hash", "lease", "registry", "bridge", "代码轴", "运行轴", "租约"):
+                self.assertNotIn(term, item["message"].lower(), item["scenario"])
             for phrase in item["mustContain"]:
                 self.assertIn(phrase, item["message"])
 

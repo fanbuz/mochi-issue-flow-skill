@@ -22,6 +22,7 @@ Mochi Issue Flow 是面向 AI agent 的开源协作 skill：它把 issue、ticke
 - 带属性或无属性的 sentinel 都会被精确解析；歧义输入停止处理，不会退回抓取任意 JSON。
 - canonical comment 更新使用 revision/hash 前置条件和写后回读，平台不支持原生 CAS 时会明确标记残余竞态。
 - 按只读、写入、迁移、关单和故障诊断分别限制实际加载工作集，正常运行脚本不读取源码。
+- 面向用户的进度只保留可识别结果、实际影响、阻塞与下一步；revision、hash、lease、registry 等内部流转默认不逐次播报。
 
 ## 核心模型
 
@@ -81,6 +82,12 @@ python3 mochi-issue-flow/scripts/audit_flow.py --mode closeout flow-card.json
 python3 mochi-issue-flow/scripts/conditional_comment_edit.py prepare request.json live-snapshot.json --now 2026-07-16T10:00:00Z
 python3 mochi-issue-flow/scripts/conditional_comment_edit.py verify request.json saved-snapshot.json
 ```
+
+### 4. 过滤内部任务链流转
+
+Flow Card 的读取、条件写入、revision/hash 校验、租约心跳、registry 同步和多次验证属于内部执行记录。默认将连续内部事件合并为一条用户可理解的进度，只说明已经取得的结果、是否影响数据、当前具体阻塞和下一步；除非用户要求技术明细，或并发冲突会改变结果与决策，否则不展示协议字段和状态迁移。
+
+例如，不逐次播报“revision 18 已写入、hash 已锁定、代码轴 verified、运行轴 blocked”，而是表达为：“上一阶段结果已恢复并通过一致性检查，代码变更已经验收；联调环境仍未通过，下一步继续处理环境问题。”
 
 ## L3 Flow Card 协议
 
