@@ -16,6 +16,7 @@ Contributions should improve a carrier-neutral protocol, its templates, offline 
    ```
 
 5. Run `git diff --check` and review the public-safety boundary before opening a pull request.
+6. Run context-budget checks for changed summaries, adapter snapshots, or Flow Card fixtures.
 
 ## Documentation rules
 
@@ -23,6 +24,8 @@ Contributions should improve a carrier-neutral protocol, its templates, offline 
 - Keep `SKILL.md` concise; put schemas, templates, and detailed scenarios in their dedicated directories.
 - Use lowercase hyphenated state values consistently.
 - Network-dependent carrier tests belong in adapters. Core Flow Card tests must run from offline fixtures.
+- Adapter outputs must contain one normalized canonical payload, not raw and parsed duplicates.
+- Character budgets are deterministic CI gates; optional tokenizer counts are reference measurements.
 
 ## License
 

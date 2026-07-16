@@ -1,6 +1,8 @@
 import copy
 import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -8,7 +10,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from audit_flow import audit_flow
+from audit_flow import audit_flow, audit_flow_report
 from validate_flow_card import validate_flow_card
 
 
@@ -43,6 +45,46 @@ class FlowCardValidationTest(unittest.TestCase):
 
     def test_accepts_a_valid_flow_card(self):
         self.assertEqual([], validate_flow_card(load_fixture("valid-flow-card.json")))
+
+    def test_rejects_unexpected_artifact_repository(self):
+        card = load_fixture("valid-flow-card.json")
+        card["bridges"][0]["currentCommit"]["repos"]["extra-repo"] = {
+            "branch": "main",
+            "sha": "3333333",
+        }
+
+        self.assertIn(
+            "bridge example-bridge currentCommit has unexpected repos: extra-repo",
+            validate_flow_card(card),
+        )
+
+    def test_revision_only_mode_requires_no_lease(self):
+        card = load_fixture("valid-flow-card.json")
+        card["concurrencyControl"] = {"mode": "revision-only"}
+        del card["flowExecutionLease"]
+
+        self.assertEqual([], validate_flow_card(card))
+
+    def test_lease_mode_requires_a_lease(self):
+        card = load_fixture("valid-flow-card.json")
+        del card["flowExecutionLease"]
+
+        self.assertIn(
+            "flowExecutionLease is required when concurrencyControl.mode is lease",
+            validate_flow_card(card),
+        )
+
+    def test_legacy_v3_without_concurrency_control_defaults_to_lease(self):
+        card = load_fixture("valid-flow-card.json")
+        del card["concurrencyControl"]
+
+        self.assertEqual([], validate_flow_card(card))
+
+    def test_rejects_invalid_registry_waiver_shape(self):
+        card = load_fixture("valid-flow-card.json")
+        card["registry"]["waiver"] = "approved"
+
+        self.assertIn("registry.waiver must be an object or null", validate_flow_card(card))
 
 
 class FlowAuditTest(unittest.TestCase):
@@ -87,6 +129,180 @@ class FlowAuditTest(unittest.TestCase):
         self.assertEqual("needs-reverify", bridge["codeState"]["value"])
         self.assertEqual("needs-reverify", bridge["runtimeState"]["value"])
 
+    def test_closeout_rejects_needs_reverify_without_routine_findings(self):
+        card = load_fixture("valid-flow-card.json")
+        card["bridges"][0]["runtimeState"]["value"] = "needs-reverify"
+
+        report = audit_flow_report(
+            card,
+            datetime.fromisoformat("2026-07-11T10:00:00+00:00"),
+            "closeout",
+        )
+
+        self.assertEqual([], report["findings"])
+        self.assertFalse(report["closeoutEligible"])
+        self.assertIn(
+            {
+                "code": "flow-runtime-not-verified",
+                "bridgeId": "",
+                "axis": "runtime",
+                "state": "needs-reverify",
+            },
+            report["closeoutReasons"],
+        )
+
+    def test_closeout_accepts_verified_required_axes(self):
+        card = load_fixture("valid-flow-card.json")
+
+        report = audit_flow_report(
+            card,
+            datetime.fromisoformat("2026-07-11T10:00:00+00:00"),
+            "closeout",
+        )
+
+        self.assertTrue(report["closeoutEligible"])
+        self.assertEqual([], report["closeoutReasons"])
+
+    def test_reports_registry_revision_drift(self):
+        card = load_fixture("valid-flow-card.json")
+        card["registry"]["lastSyncedStatusRevision"] = 0
+
+        findings = audit_flow(card, datetime.fromisoformat("2026-07-11T10:00:00+00:00"))
+
+        self.assertIn(
+            {"code": "registry-stale", "severity": "error", "bridgeId": ""},
+            findings,
+        )
+
+    def test_optional_registry_drift_is_visible_but_does_not_block_closeout(self):
+        card = load_fixture("valid-flow-card.json")
+        card["registry"]["lastSyncedStatusRevision"] = 0
+
+        report = audit_flow_report(
+            card,
+            datetime.fromisoformat("2026-07-11T10:00:00+00:00"),
+            "closeout",
+        )
+
+        self.assertIn(
+            {"code": "registry-stale", "severity": "error", "bridgeId": ""},
+            report["findings"],
+        )
+        self.assertTrue(report["closeoutEligible"])
+
+    def test_synchronized_registry_without_revision_is_always_reported(self):
+        card = load_fixture("valid-flow-card.json")
+        del card["registry"]["lastSyncedStatusRevision"]
+
+        findings = audit_flow(card, datetime.fromisoformat("2026-07-11T10:00:00+00:00"))
+
+        self.assertIn(
+            {"code": "registry-revision-unbound", "severity": "error", "bridgeId": ""},
+            findings,
+        )
+
+    def test_closeout_requires_registry_revision_binding_when_required(self):
+        card = load_fixture("valid-flow-card.json")
+        card["registry"]["requiredForDone"] = True
+        del card["registry"]["lastSyncedStatusRevision"]
+
+        report = audit_flow_report(
+            card,
+            datetime.fromisoformat("2026-07-11T10:00:00+00:00"),
+            "closeout",
+        )
+
+        self.assertFalse(report["closeoutEligible"])
+        self.assertIn(
+            {"code": "registry-revision-unbound", "bridgeId": ""},
+            report["closeoutReasons"],
+        )
+
+    def test_approved_waiver_allows_closeout_but_keeps_registry_finding_visible(self):
+        card = load_fixture("valid-flow-card.json")
+        card["registry"].update(
+            {
+                "requiredForDone": True,
+                "lastSyncedStatusRevision": 0,
+                "waiver": {"approved": True, "reason": "accepted delivery exception"},
+            }
+        )
+
+        report = audit_flow_report(
+            card,
+            datetime.fromisoformat("2026-07-11T10:00:00+00:00"),
+            "closeout",
+        )
+
+        self.assertIn(
+            {"code": "registry-stale", "severity": "error", "bridgeId": ""},
+            report["findings"],
+        )
+        self.assertTrue(report["closeoutEligible"])
+        self.assertEqual([], report["closeoutReasons"])
+
+    def test_closeout_cli_exit_code_matches_eligibility(self):
+        script = SCRIPT_DIR / "audit_flow.py"
+        eligible = subprocess.run(
+            [sys.executable, str(script), "--mode", "closeout", str(FIXTURE_DIR / "valid-flow-card.json")],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, eligible.returncode)
+        self.assertTrue(json.loads(eligible.stdout)["closeoutEligible"])
+
+        card = load_fixture("valid-flow-card.json")
+        card["bridges"][0]["runtimeState"]["value"] = "pending"
+        with tempfile.TemporaryDirectory() as directory:
+            card_path = Path(directory) / "ineligible.json"
+            card_path.write_text(json.dumps(card), encoding="utf-8")
+            ineligible = subprocess.run(
+                [sys.executable, str(script), "--mode", "closeout", str(card_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(2, ineligible.returncode)
+        self.assertFalse(json.loads(ineligible.stdout)["closeoutEligible"])
+
+    def test_routine_cli_keeps_legacy_exit_contract(self):
+        script = SCRIPT_DIR / "audit_flow.py"
+        valid = subprocess.run(
+            [sys.executable, str(script), str(FIXTURE_DIR / "valid-flow-card.json")],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        drift = subprocess.run(
+            [sys.executable, str(script), str(FIXTURE_DIR / "drift-flow-card.json")],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(0, valid.returncode)
+        self.assertEqual("routine", json.loads(valid.stdout)["mode"])
+        self.assertIsNone(json.loads(valid.stdout)["closeoutEligible"])
+        self.assertEqual(2, drift.returncode)
+        self.assertIn("commit-drift", {item["code"] for item in json.loads(drift.stdout)["findings"]})
+
+    def test_closeout_reports_structural_failure_instead_of_crashing(self):
+        card = load_fixture("valid-flow-card.json")
+        card["bridges"][0]["runtimeState"] = None
+
+        report = audit_flow_report(
+            card,
+            datetime.fromisoformat("2026-07-11T10:00:00+00:00"),
+            "closeout",
+        )
+
+        self.assertFalse(report["closeoutEligible"])
+        self.assertIn(
+            {"code": "status-missing", "bridgeId": ""},
+            report["closeoutReasons"],
+        )
+
 
 class PublicSkillShapeTest(unittest.TestCase):
     def test_skill_frontmatter_has_only_name_and_description(self):
@@ -117,7 +333,7 @@ class PublicSkillShapeTest(unittest.TestCase):
         readme_en = (RELEASE_ROOT / "README.en.md").read_text(encoding="utf-8")
         license_text = (RELEASE_ROOT / "LICENSE").read_text(encoding="utf-8")
 
-        self.assertEqual("3.0.1", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
+        self.assertEqual("3.1.0", (RELEASE_ROOT / "VERSION").read_text(encoding="utf-8").strip())
         self.assertIn("Apache-2.0", readme_zh)
         self.assertIn("Flow Card", readme_zh)
         self.assertIn("Apache-2.0", readme_en)

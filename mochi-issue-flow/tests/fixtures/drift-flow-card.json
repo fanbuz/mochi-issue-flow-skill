@@ -2,8 +2,11 @@
   "protocolVersion": "3.0",
   "flowId": "example-flow",
   "statusRevision": 2,
+  "canonicalStatusCommentUrl": "https://carrier.example/issues/1#comment-1",
+  "concurrencyControl": {"mode": "lease"},
   "registry": {
     "status": "synchronized",
+    "lastSyncedStatusRevision": 2,
     "requiredForDone": false,
     "waiver": null
   },
@@ -41,13 +44,17 @@
       "codeState": {
         "value": "verified",
         "activeEvidence": [{"url": "https://example.invalid/code-evidence"}],
-        "supersededEvidence": []
+        "supersededEvidence": [],
+        "archiveRefs": []
       },
       "runtimeState": {
         "value": "verified",
         "activeEvidence": [{"url": "https://example.invalid/runtime-evidence"}],
-        "supersededEvidence": []
-      }
+        "supersededEvidence": [],
+        "archiveRefs": []
+      },
+      "nextOwner": "driver-owner",
+      "nextAction": "reverify the replacement commit set"
     }
   ],
   "dependencies": []

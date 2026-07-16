@@ -21,6 +21,6 @@
 ## Acceptance criteria
 
 - [ ] One carrier/comment is authoritative after cutover.
-- [ ] Registry state is synchronized or has an approved waiver.
+- [ ] Registry state is bound to the canonical revision, or has an approved waiver.
 - [ ] Existing links resolve to the new current-state record.
 - [ ] Rollback owner and condition are recorded.

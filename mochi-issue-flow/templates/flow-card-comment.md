@@ -1,6 +1,6 @@
 ## Flow status
 
-This comment is the single current-state record for the flow. Edit this comment in place after acquiring the lease. Put human context above the JSON and keep the sentinel block machine-readable.
+This comment is the single current-state record for the flow. Edit it in place only after satisfying the declared concurrency control. Put generated human context above the JSON and keep the sentinel block machine-readable.
 
 <!-- flow-card:start v3 -->
 ```json
@@ -9,6 +9,7 @@ This comment is the single current-state record for the flow. Edit this comment 
   "flowId": "flow-example",
   "statusRevision": 1,
   "canonicalStatusCommentUrl": null,
+  "concurrencyControl": { "mode": "lease" },
   "flowExecutionLease": {
     "owner": "agent/session identity",
     "threadId": "optional-codex-thread-id",
@@ -19,7 +20,7 @@ This comment is the single current-state record for the flow. Edit this comment 
     "transfer": null
   },
   "registry": {
-    "status": "synchronized",
+    "status": "not-configured",
     "requiredForDone": false,
     "waiver": null
   },
@@ -46,13 +47,17 @@ This comment is the single current-state record for the flow. Edit this comment 
       "codeState": {
         "value": "verified",
         "activeEvidence": [],
-        "supersededEvidence": []
+        "supersededEvidence": [],
+        "archiveRefs": []
       },
       "runtimeState": {
         "value": "verified",
         "activeEvidence": [],
-        "supersededEvidence": []
+        "supersededEvidence": [],
+        "archiveRefs": []
       },
+      "nextOwner": "acceptance owner",
+      "nextAction": "describe the next decisive gate",
       "coordinationState": "ready-for-acceptance"
     }
   ],
@@ -63,4 +68,4 @@ This comment is the single current-state record for the flow. Edit this comment 
 ```
 <!-- flow-card:end -->
 
-Bootstrap procedure: create this comment with `canonicalStatusCommentUrl: null`; after the carrier returns its URL, edit this same comment, set that URL, increment `statusRevision`, and retain the sentinel delimiters. A failed edit leaves the previous revision authoritative.
+Bootstrap procedure: create this comment with `canonicalStatusCommentUrl: null`; after the carrier returns its URL, edit this same comment, set that URL, increment `statusRevision`, and retain the sentinel delimiters. Keep registry status `not-configured` unless the project uses one. A registry adapter binds its successful projection to the target revision and marks any partial failure `out-of-sync`; a failed canonical edit leaves the previous revision authoritative.

@@ -2,8 +2,11 @@
   "protocolVersion": "3.0",
   "flowId": "example-flow",
   "statusRevision": 1,
+  "canonicalStatusCommentUrl": "https://carrier.example/issues/1#comment-1",
+  "concurrencyControl": {"mode": "lease"},
   "registry": {
     "status": "synchronized",
+    "lastSyncedStatusRevision": 1,
     "requiredForDone": false,
     "waiver": null
   },
@@ -15,8 +18,8 @@
       "threadId": "thread-1",
       "sessionId": "session-1"
     },
-    "lastHeartbeatAt": "2026-07-11T09:55:00+00:00",
-    "expiresAt": "2026-07-11T10:10:00+00:00"
+    "lastHeartbeatAt": "2099-01-01T09:55:00+00:00",
+    "expiresAt": "2099-01-01T10:10:00+00:00"
   },
   "bridges": [
     {
@@ -38,8 +41,10 @@
       },
       "codeRequired": true,
       "runtimeRequired": true,
-      "codeState": {"value": "verified", "activeEvidence": [], "supersededEvidence": []},
-      "runtimeState": {"value": "verified", "activeEvidence": [], "supersededEvidence": []}
+      "codeState": {"value": "verified", "activeEvidence": [], "supersededEvidence": [], "archiveRefs": []},
+      "runtimeState": {"value": "verified", "activeEvidence": [], "supersededEvidence": [], "archiveRefs": []},
+      "nextOwner": "acceptance-owner",
+      "nextAction": "confirm closeout"
     }
   ],
   "dependencies": []

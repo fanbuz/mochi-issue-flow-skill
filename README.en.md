@@ -16,8 +16,9 @@ It is not a copy of any company-specific process or issue platform. GitHub Issue
 - A new agent can recover the next action without reconstructing chat history.
 - Cross-repository work has traceable source, support, driver, acceptance owner, and next action instead of disconnected comments.
 - Multi-repository completion is not mistaken for “one repository has a commit”: it requires a complete artifact commit set and independent code/runtime evidence.
-- Retried or concurrent agents cannot casually overwrite current state: one Flow Card is edited only by the holder of a live lease.
-- The issue is authoritative and the registry/dashboard is a cache; blocked cache writes become an explicit pending-user-approval state instead of silent loss.
+- Retried or concurrent agents cannot casually overwrite current state: each card explicitly declares lease or revision-only concurrency control.
+- The issue is authoritative and the registry/dashboard is a revision-bound cache; failed projection writes become explicit pending or out-of-sync state.
+- Status queries can read a compact canonical-comment summary without loading complete comment history.
 
 ## Core model
 
@@ -66,9 +67,10 @@ Create the comment from `templates/flow-card-comment.md` on the tracking issue. 
 ```bash
 python3 mochi-issue-flow/scripts/validate_flow_card.py flow-card.json
 python3 mochi-issue-flow/scripts/audit_flow.py flow-card.json
+python3 mochi-issue-flow/scripts/audit_flow.py --mode closeout flow-card.json
 ```
 
-The first command validates structure. The second audits an offline JSON snapshot. It exits with status `2` for error findings, which makes it usable as an automation gate.
+The first command validates structure, the second performs routine audit, and the third returns explicit `closeoutEligible`. Errors or ineligible closeout exit with status `2`, which makes them usable as automation gates.
 
 ## L3 Flow Card protocol
 
@@ -87,15 +89,19 @@ See the complete [schema](mochi-issue-flow/references/flow-card-schema.md) and [
 | Concept | Constraint |
 |---|---|
 | One authority | `canonicalStatusCommentUrl` points to the only current-state comment; bootstrap and backfill it once. |
+| Compact status read | A summary is derived from canonical JSON and bound to `sourceStatusRevision` plus its content hash. |
 | Optimistic revision | `statusRevision` increments on every successful edit; reread owner and revision before a write. |
 | Bridge | Each cross-repository work unit has a stable `bridgeId`; a DAG records its dependencies. |
 | Complete commit set | Both `currentCommit` and `acceptedCommit` cover all `relevantArtifactRepos` for the Bridge. |
 | Dual-axis acceptance | `codeState` and `runtimeState` are verified independently; only required axes block completion. |
 | Commit drift | On mismatch, active evidence moves to `supersededEvidence` and required axes become `needs-reverify`. |
-| Concurrency protection | `flowExecutionLease`, heartbeat, expiry detection, and explicit transfer prevent duplicate agents and writes. |
-| Registry | Project policy may make `registry.requiredForDone` block final done; an approved waiver is the only exception. |
+| Historical archive | Write and verify an immutable archive before replacing bulky history with `archiveRefs`. |
+| Concurrency protection | `lease` is the legacy V3 default; an explicit single-writer flow may use `revision-only`. |
+| Registry | `synchronized` must bind the current `lastSyncedStatusRevision`; an approved waiver is the only closeout exception. |
 
-A coordination state such as `ready-for-acceptance` never substitutes for `flowCodeState` and `flowRuntimeState`. Final completion requires both derived axes to satisfy the current required Bridge set.
+A coordination state such as `ready-for-acceptance` never substitutes for `flowCodeState` and `flowRuntimeState`. Final completion requires closeout audit to confirm every required axis and synchronization gate.
+
+Use `scripts/flow_status.py` for status reads, `scripts/archive_flow_evidence.py` for evidence archives, and `scripts/check_context_budget.py` for context budgets. A platform adapter filters to the canonical comment before model exposure and returns one normalized payload.
 
 ## Use the correct workspace
 
@@ -113,7 +119,7 @@ python3 -m unittest discover -s mochi-issue-flow/tests -p 'test_*.py' -v
 
 When this command runs at the release repository root, it also checks the READMEs, license, version, and bytecode ignore rules. In an installed skills directory those repository-level checks are explicitly skipped, while Flow Card, template, and auditor core tests still run independently.
 
-The [S1–S4 matrix](mochi-issue-flow/references/scenario-evidence-matrix.md) defines scenario evidence. Before closing an L3 Flow, audit missing status, commit drift, deferred registry work, stalled leases, and runtime blockers.
+The [S1–S4 matrix](mochi-issue-flow/references/scenario-evidence-matrix.md) defines scenario evidence. Before closing an L3 Flow, use closeout mode to audit missing status, commit drift, registry revision, stalled leases, and every required axis.
 
 ## Repository layout
 
@@ -129,7 +135,7 @@ mochi-issue-flow-skill/
     ├── agents/openai.yaml
     ├── templates/                  # Flow Card, issue, evidence, delivery packet
     ├── references/                 # schema, states, leases, preflight, scenarios
-    ├── scripts/                    # offline validate / audit
+    ├── scripts/                    # offline status, validation, audit, archive, and budgets
     └── tests/                      # repeatable fixture tests
 ```
 
