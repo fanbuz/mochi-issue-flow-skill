@@ -113,6 +113,20 @@ A coordination state such as `ready-for-acceptance` never substitutes for `flowC
 
 Use `scripts/flow_status.py` for status reads, `scripts/conditional_comment_edit.py` for conditional edits, `scripts/archive_flow_evidence.py` for evidence archives, and `scripts/check_context_budget.py` for context budgets. A platform adapter filters to the canonical comment before model exposure and returns one normalized payload. Execute scripts directly during normal operation and load their source only when diagnosing a script failure.
 
+## Token Cost and Optimizations
+
+Mochi Issue Flow is designed to avoid loading complete issue history into the model. It compresses the authoritative current state into the smallest verifiable working set. A read-only status query should read the canonical comment and use `scripts/flow_status.py` to produce a compact summary bound to `sourceStatusRevision` and the content hash; the normal target is about 3,000 tokens or less. A routine L3 recovery should stay around 8,000 to 10,000 tokens before adding business code or repository context.
+
+Main optimizations:
+
+- Route first: choose Read-only, L1, L2, or L3 before loading route-specific references.
+- Read precise carriers: adapters return only the canonical comment or target comment, not full comment history for the model to filter.
+- Prefer scripts: status summaries, audits, conditional edits, archives, and budget checks execute directly; load script source only when diagnosing a script failure.
+- Favor current state: Flow Cards keep active evidence and required gates while bulky older proof moves to archive references.
+- Make budgets auditable: `scripts/check_context_budget.py` uses normalized JSON character count as the dependency-free hard metric; when `tiktoken` is installed, it also reports an `o200k_base` token estimate.
+
+See [context budget](mochi-issue-flow/references/context-budget.md) for thresholds, fixtures, and CI policy.
+
 ## Use the correct workspace
 
 Before cross-repository verification, record every relevant repository’s path, branch, worktree, and SHA. Use a direct branch only when it is clean, dedicated, and unowned by a concurrent agent; use a worktree for shared branches, isolation, or parallel work.
