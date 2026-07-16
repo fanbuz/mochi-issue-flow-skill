@@ -1,0 +1,74 @@
+[
+  {
+    "scenario": "read-only",
+    "language": "zh",
+    "message": "我先确认测试环境和本次验收数据是否可用。这一步只读取状态，不会修改数据或启动业务操作；确认后我会告诉你能否安全继续。",
+    "mustContain": ["只读取", "不会修改", "继续"]
+  },
+  {
+    "scenario": "before-write",
+    "language": "zh",
+    "message": "下一步会更新现有排班数据，成功后会影响本月排班结果。我会先核对完整月份和当前版本，任一条件变化都会停止写入。",
+    "mustContain": ["更新", "影响", "停止写入"]
+  },
+  {
+    "scenario": "write-success",
+    "language": "zh",
+    "message": "排班已保存成功，事务已提交，后续核对可以继续。我接下来会验证读取结果与本次提交一致。",
+    "mustContain": ["成功", "已提交", "验证"]
+  },
+  {
+    "scenario": "write-failure",
+    "language": "zh",
+    "message": "排班没有保存成功，事务未提交，后续写入已经停止。下一步只诊断这次失败原因，不会继续修改排班。",
+    "mustContain": ["未提交", "已经停止", "不会继续修改"]
+  },
+  {
+    "scenario": "waiting-approval",
+    "language": "zh",
+    "message": "接口失败但没有返回具体原因，我已停止后续写入。如果你允许，我只读取本机服务控制台中的这次异常，不操作服务或数据。",
+    "mustContain": ["停止", "如果你允许", "只读取"]
+  },
+  {
+    "scenario": "closeout",
+    "language": "zh",
+    "message": "本次交付的代码和运行验收均已通过，没有剩余阻塞，可以关闭。关闭前我会保存最终证据并确认状态投影已同步。",
+    "mustContain": ["已通过", "可以关闭", "最终证据"]
+  },
+  {
+    "scenario": "read-only",
+    "language": "en",
+    "message": "I’ll confirm that the test environment and acceptance data are available. This is read-only and will not change data or start a business operation; I’ll report whether it is safe to continue.",
+    "mustContain": ["read-only", "will not change", "continue"]
+  },
+  {
+    "scenario": "before-write",
+    "language": "en",
+    "message": "The next step will update the existing schedule and may change this month’s result. I’ll verify the full month and current version first, and stop if either has changed.",
+    "mustContain": ["update", "may change", "stop"]
+  },
+  {
+    "scenario": "write-success",
+    "language": "en",
+    "message": "The schedule was saved and the transaction committed, so verification can continue. I’ll now confirm that the saved result matches this submission.",
+    "mustContain": ["saved", "committed", "confirm"]
+  },
+  {
+    "scenario": "write-failure",
+    "language": "en",
+    "message": "The schedule was not saved, the transaction did not commit, and later writes have stopped. The next step only diagnoses this failure and will not modify the schedule.",
+    "mustContain": ["did not commit", "have stopped", "will not modify"]
+  },
+  {
+    "scenario": "waiting-approval",
+    "language": "en",
+    "message": "The request failed without a specific cause, and I stopped later writes. With your approval, I’ll only read the matching local service error and will not operate the service or data.",
+    "mustContain": ["stopped", "With your approval", "only read"]
+  },
+  {
+    "scenario": "closeout",
+    "language": "en",
+    "message": "Code and runtime acceptance have passed with no remaining blocker, so the delivery can close. Before closing, I’ll preserve the final evidence and confirm the status projection is synchronized.",
+    "mustContain": ["have passed", "can close", "final evidence"]
+  }
+]

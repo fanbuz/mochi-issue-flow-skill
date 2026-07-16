@@ -1,0 +1,34 @@
+{
+  "read-only-status": {
+    "artifacts": ["SKILL.md", "references/status-read-adapter.md"],
+    "dynamicArtifacts": ["summary"],
+    "trace": {
+      "userInput": "Summarize the current delivery status.",
+      "expectedBehavior": "Return the revision-bound summary without the full card or comment history."
+    }
+  },
+  "conditional-mutation": {
+    "artifacts": ["SKILL.md", "references/conditional-comment-edit.md"],
+    "dynamicArtifacts": ["card"],
+    "trace": {
+      "userInput": "Update the existing canonical status after this verification.",
+      "expectedBehavior": "Load one full card, verify revision/hash, edit in place, and reread."
+    }
+  },
+  "migration-archive": {
+    "artifacts": ["SKILL.md", "references/evidence-archive-and-migration.md"],
+    "dynamicArtifacts": ["card"]
+  },
+  "closeout": {
+    "artifacts": ["SKILL.md"],
+    "dynamicArtifacts": ["card"]
+  },
+  "runtime-failure-diagnosis": {
+    "artifacts": ["SKILL.md", "references/status-read-adapter.md"],
+    "dynamicArtifacts": ["summary", "runtimeFailure"],
+    "trace": {
+      "userInput": "The business write failed without a detailed response.",
+      "expectedBehavior": "State the data outcome, stop later writes, and inspect only the decisive failure artifact."
+    }
+  }
+}

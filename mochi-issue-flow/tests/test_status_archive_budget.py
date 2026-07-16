@@ -10,7 +10,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from archive_flow_evidence import ArchiveError, apply_archive, archive_hash, prepare_archive
 from audit_flow import audit_flow
-from check_context_budget import measure_json, measure_text
+from check_context_budget import measure_json, measure_route_bundle, measure_text
 from flow_status import StatusReadError, build_summary, extract_flow_card, read_flow_card, summary_is_current
 from validate_flow_card import validate_flow_card
 
@@ -136,8 +136,68 @@ class FlowStatusTest(unittest.TestCase):
     def test_rejects_multiple_flow_card_blocks_in_one_comment(self):
         body = load_fixture("normalized-status-read.json")["canonicalComment"]["body"]
 
-        with self.assertRaises(StatusReadError):
+        with self.assertRaises(StatusReadError) as context:
             extract_flow_card(body + "\n" + body)
+
+        self.assertEqual("flow-card-ambiguous", context.exception.code)
+
+    def test_accepts_attributed_start_and_end_sentinels(self):
+        body = load_fixture("normalized-status-read.json")["canonicalComment"]["body"]
+        body = body.replace(
+            "<!-- flow-card:start v3 -->",
+            "<!-- flow-card:start flowId=status-read-example protocol=3.0 -->",
+        ).replace(
+            "<!-- flow-card:end -->",
+            "<!-- flow-card:end flowId=status-read-example -->",
+        )
+
+        card = extract_flow_card(body)
+
+        self.assertEqual("status-read-example", card["flowId"])
+
+    def test_ignores_unrelated_json_fences_outside_the_sentinel(self):
+        body = load_fixture("normalized-status-read.json")["canonicalComment"]["body"]
+        unrelated = '```json\n{"kind":"unrelated"}\n```'
+
+        card = extract_flow_card(unrelated + "\n" + body + "\n" + unrelated)
+
+        self.assertEqual("status-read-example", card["flowId"])
+
+    def test_rejects_sentinel_flow_id_mismatch(self):
+        body = load_fixture("normalized-status-read.json")["canonicalComment"]["body"]
+        body = body.replace(
+            "<!-- flow-card:start v3 -->",
+            "<!-- flow-card:start flowId=other-flow protocol=3.0 -->",
+        ).replace(
+            "<!-- flow-card:end -->",
+            "<!-- flow-card:end flowId=status-read-example -->",
+        )
+
+        with self.assertRaises(StatusReadError) as context:
+            extract_flow_card(body)
+
+        self.assertEqual("flow-card-flow-id-mismatch", context.exception.code)
+
+    def test_rejects_unclosed_sentinel_with_stable_reason(self):
+        body = load_fixture("normalized-status-read.json")["canonicalComment"]["body"]
+        body = body.replace("<!-- flow-card:end -->", "")
+
+        with self.assertRaises(StatusReadError) as context:
+            extract_flow_card(body)
+
+        self.assertEqual("flow-card-ambiguous", context.exception.code)
+
+    def test_distinguishes_invalid_json_from_invalid_json_type(self):
+        body = load_fixture("normalized-status-read.json")["canonicalComment"]["body"]
+        payload = body.split("```json\n", 1)[1].split("\n```", 1)[0]
+
+        with self.assertRaises(StatusReadError) as invalid_json:
+            extract_flow_card(body.replace(payload, '{"broken":'))
+        with self.assertRaises(StatusReadError) as invalid_type:
+            extract_flow_card(body.replace(payload, '["not", "an", "object"]'))
+
+        self.assertEqual("flow-card-invalid-json", invalid_json.exception.code)
+        self.assertEqual("flow-card-invalid-type", invalid_type.exception.code)
 
 
 class EvidenceArchiveTest(unittest.TestCase):
@@ -261,6 +321,42 @@ class ContextBudgetTest(unittest.TestCase):
 
         self.assertEqual("warning", warning["status"])
         self.assertEqual("failed", failure["status"])
+
+    def test_route_worksets_are_bounded_and_do_not_load_script_source(self):
+        routes = load_fixture("route-worksets.json")
+        adapter = load_fixture("normalized-status-read.json")
+        dynamic_artifacts = {
+            "summary": build_summary(read_flow_card(adapter)),
+            "card": load_fixture("valid-flow-card.json"),
+            "runtimeFailure": {
+                "operation": "save monthly schedule",
+                "result": "transaction failed",
+                "nextAction": "inspect the local service exception",
+            },
+        }
+
+        reports = {
+            route: measure_route_bundle(SKILL_DIR, spec, dynamic_artifacts)
+            for route, spec in routes.items()
+        }
+
+        self.assertTrue(all(report["status"] == "ok" for report in reports.values()))
+        self.assertTrue(all(report["scriptSourceCount"] == 0 for report in reports.values()))
+        self.assertEqual(
+            ["SKILL.md", "references/status-read-adapter.md"],
+            reports["read-only-status"]["artifactPaths"],
+        )
+        self.assertNotIn("card", reports["read-only-status"]["dynamicArtifactNames"])
+        self.assertIn("card", reports["conditional-mutation"]["dynamicArtifactNames"])
+
+    def test_route_workset_rejects_normal_script_source_loading(self):
+        spec = {
+            "artifacts": ["SKILL.md", "scripts/flow_status.py"],
+            "dynamicArtifacts": ["summary"],
+        }
+
+        with self.assertRaisesRegex(ValueError, "script source"):
+            measure_route_bundle(SKILL_DIR, spec, {"summary": {"flowId": "example"}})
 
     def test_alias_template_is_not_a_second_flow_card(self):
         text = (SKILL_DIR / "templates" / "flow-card-alias.md").read_text(encoding="utf-8")

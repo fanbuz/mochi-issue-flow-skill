@@ -18,9 +18,11 @@ The author often uses Gitea issues as the issue-like carrier and pairs this skil
 - Do not close a support issue until the acceptance/driver side has verified.
 - Use comment-level URLs for handoff and evidence links when the platform supports them.
 
-## Example Command Shape
+## Existing-comment edits
 
-Commands vary by `gitea-cli` installation. Use the local help output before writing:
+Discover the installed tool schema or CLI help read-only before the first write; do not discover method names by sending trial edits. For the Gitea MCP shape used by Codex, edit an existing canonical comment with `issue_write`, `method=edit_comment`, and the exact `commentID`, then reread that comment. Pass the result through `references/conditional-comment-edit.md` before registry projection.
+
+Standalone CLI commands vary by installation. Inspect their read-only help once:
 
 ```bash
 gitea-cli --help
